@@ -1216,6 +1216,7 @@ func (s *State) refreshDNSExtraRecords(cfg *types.Config) (change.Change, error)
 	defer s.dnsRecordsMu.Unlock()
 
 	if cfg.TailcfgDNSConfig == nil {
+		// DNS is not configured; nothing to update.
 		return change.Change{}, nil
 	}
 
@@ -1236,7 +1237,8 @@ func (s *State) refreshDNSExtraRecords(cfg *types.Config) (change.Change, error)
 	return change.ExtraRecords(), nil
 }
 
-// The userID parameter is now optional (can be nil) for system-created tagged keys.
+// CreatePreAuthKey generates a new pre-authentication key for a user.
+// The userID parameter is optional (can be nil) for system-created tagged keys.
 func (s *State) CreatePreAuthKey(userID *types.UserID, reusable bool, ephemeral bool, expiration *time.Time, aclTags []string) (*types.PreAuthKeyNew, error) {
 	return s.db.CreatePreAuthKey(userID, reusable, ephemeral, expiration, aclTags)
 }

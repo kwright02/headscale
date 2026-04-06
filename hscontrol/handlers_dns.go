@@ -91,7 +91,7 @@ func (h *Headscale) CreateDNSRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate name as a proper DNS name (single label or FQDN).
-	normalizedName, err := normalizeDNSRecordName(req.Name)
+	normalizedName, err := validateDNSRecordName(req.Name)
 	if err != nil {
 		httpError(w, NewHTTPError(http.StatusBadRequest, err.Error(), err))
 
@@ -161,19 +161,14 @@ func (h *Headscale) DeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
 
 	h.Change(c)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(map[string]any{}); err != nil {
-		log.Error().Caller().Err(err).Msg("encoding delete DNS record response")
-	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// normalizeDNSRecordName validates and normalises a DNS name for storage.
+// validateDNSRecordName validates a DNS name for storage.
 // It accepts both single-label hostnames (e.g. "web") and fully-qualified domain
 // names (e.g. "grafana.myvpn.example.com" or "grafana.myvpn.example.com.").
 // The trailing dot (if present) is preserved so the stored value is an FQDN.
-func normalizeDNSRecordName(name string) (string, error) {
+func validateDNSRecordName(name string) (string, error) {
 	if name == "" {
 		return "", types.ErrDNSRecordInvalidName
 	}

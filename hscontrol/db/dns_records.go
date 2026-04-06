@@ -1,8 +1,8 @@
 package db
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/juanfont/headscale/hscontrol/types"
 )
@@ -60,26 +60,7 @@ func isUniqueConstraintViolation(err error) bool {
 		return false
 	}
 
-	// gorm wraps some errors; unwrap to check
-	unwrapped := errors.Unwrap(err)
-	if unwrapped != nil {
-		err = unwrapped
-	}
-
 	msg := err.Error()
-	return containsAny(msg, "UNIQUE constraint failed", "duplicate key value")
-}
 
-func containsAny(s string, substrings ...string) bool {
-	for _, sub := range substrings {
-		if len(s) >= len(sub) {
-			for i := range s {
-				if i+len(sub) <= len(s) && s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
+	return strings.Contains(msg, "UNIQUE constraint failed") || strings.Contains(msg, "duplicate key value")
 }
