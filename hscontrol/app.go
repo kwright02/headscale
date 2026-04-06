@@ -506,6 +506,9 @@ func (h *Headscale) createRouter(grpcMux *grpcRuntime.ServeMux) *chi.Mux {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Use(h.httpAuthenticationMiddleware)
+		r.Get("/v1/dns/records", h.ListDNSRecords)
+		r.Post("/v1/dns/records", h.CreateDNSRecord)
+		r.Delete("/v1/dns/records/{id}", h.DeleteDNSRecord)
 		r.HandleFunc("/v1/*", grpcMux.ServeHTTP)
 	})
 	r.Get("/favicon.ico", FaviconHandler)
@@ -596,6 +599,14 @@ func (h *Headscale) Serve() error {
 
 		go h.extraRecordMan.Run()
 		defer h.extraRecordMan.Close()
+	}
+
+	// Load any API-managed DNS records from the database and merge them into the
+	// initial TailcfgDNSConfig.  Errors are non-fatal: the server can still run
+	// without the DB-stored records (they will be missing until the next restart
+	// or API call).
+	if _, err := h.state.RefreshDNSExtraRecords(h.cfg); err != nil {
+		log.Warn().Err(err).Msg("failed to load DNS records from database at startup")
 	}
 
 	// Start all scheduled tasks, e.g. expiring nodes, derp updates and

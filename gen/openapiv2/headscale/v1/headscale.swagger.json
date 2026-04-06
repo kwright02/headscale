@@ -915,6 +915,106 @@
           "HeadscaleService"
         ]
       }
+    },
+    "/api/v1/dns/records": {
+      "get": {
+        "summary": "--- DNS Records start ---",
+        "description": "List all custom DNS A/AAAA records.",
+        "operationId": "HeadscaleService_ListDnsRecords",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListDnsRecordsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "HeadscaleService"
+        ]
+      },
+      "post": {
+        "summary": "Create a custom DNS A or AAAA record.",
+        "operationId": "HeadscaleService_CreateDnsRecord",
+        "responses": {
+          "201": {
+            "description": "Record created successfully.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateDnsRecordResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid request (bad JSON, missing fields, invalid IP address)."
+          },
+          "409": {
+            "description": "A record with the same name, type, and value already exists."
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateDnsRecordRequest"
+            }
+          }
+        ],
+        "tags": [
+          "HeadscaleService"
+        ]
+      }
+    },
+    "/api/v1/dns/records/{id}": {
+      "delete": {
+        "summary": "Delete a custom DNS record by ID.",
+        "operationId": "HeadscaleService_DeleteDnsRecord",
+        "responses": {
+          "200": {
+            "description": "Record deleted successfully.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteDnsRecordResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid record ID."
+          },
+          "404": {
+            "description": "DNS record not found."
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64",
+            "description": "Numeric ID of the DNS record to delete."
+          }
+        ],
+        "tags": [
+          "HeadscaleService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1487,6 +1587,77 @@
           "type": "string"
         }
       }
+    },
+    "v1DnsRecord": {
+      "type": "object",
+      "description": "A custom A or AAAA DNS record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Unique record ID."
+        },
+        "name": {
+          "type": "string",
+          "description": "DNS name (FQDN), e.g. \"web.example.com.\"."
+        },
+        "type": {
+          "type": "string",
+          "description": "Record type: \"A\" or \"AAAA\"."
+        },
+        "value": {
+          "type": "string",
+          "description": "IP address value (IPv4 for A, IPv6 for AAAA)."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1CreateDnsRecordRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "DNS name (FQDN), e.g. \"web.example.com.\"."
+        },
+        "type": {
+          "type": "string",
+          "description": "Record type: \"A\" or \"AAAA\"."
+        },
+        "value": {
+          "type": "string",
+          "description": "IP address value (IPv4 for A, IPv6 for AAAA)."
+        }
+      }
+    },
+    "v1CreateDnsRecordResponse": {
+      "type": "object",
+      "properties": {
+        "record": {
+          "$ref": "#/definitions/v1DnsRecord"
+        }
+      }
+    },
+    "v1ListDnsRecordsResponse": {
+      "type": "object",
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1DnsRecord"
+          }
+        }
+      }
+    },
+    "v1DeleteDnsRecordResponse": {
+      "type": "object"
     }
   }
 }

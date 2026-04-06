@@ -107,6 +107,17 @@ CREATE TABLE policies(
 );
 CREATE INDEX idx_policies_deleted_at ON policies(deleted_at);
 
+CREATE TABLE dns_records(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  type text NOT NULL,
+  value text NOT NULL,
+
+  created_at datetime,
+  updated_at datetime
+);
+CREATE UNIQUE INDEX idx_dns_records_unique ON dns_records(name, type, value);
+
 CREATE TABLE database_versions(
   id integer PRIMARY KEY,
   version text NOT NULL,
