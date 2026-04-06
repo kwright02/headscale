@@ -123,6 +123,10 @@ type State struct {
 	// Ref: https://github.com/tailscale/tailscale/issues/7125
 	sshCheckAuth map[sshCheckPair]time.Time
 	sshCheckMu   sync.RWMutex
+
+	// dnsRecordsMu protects concurrent modifications to TailcfgDNSConfig.ExtraRecords
+	// when DNS records are created or deleted via the API.
+	dnsRecordsMu sync.Mutex
 }
 
 // NewState creates and initializes a new State instance, setting up the database,
@@ -1154,8 +1158,88 @@ func (s *State) DestroyAPIKey(key types.APIKey) error {
 	return s.db.DestroyAPIKey(key)
 }
 
+// --- DNS Records ---
+
+// ListDNSRecords returns all custom DNS records from the database.
+func (s *State) ListDNSRecords() ([]types.DNSRecord, error) {
+	return s.db.ListDNSRecords()
+}
+
+// CreateDNSRecord validates and persists a new DNS record, then refreshes the
+// ExtraRecords pushed to Tailscale clients.  It returns the new record and a
+// Change that the caller must forward to Headscale.Change().
+func (s *State) CreateDNSRecord(cfg *types.Config, name, recordType, value string) (*types.DNSRecord, change.Change, error) {
+	if err := types.ValidateDNSRecord(recordType, value); err != nil {
+		return nil, change.Change{}, err
+	}
+
+	record, err := s.db.CreateDNSRecord(name, recordType, value)
+	if err != nil {
+		return nil, change.Change{}, err
+	}
+
+	c, err := s.refreshDNSExtraRecords(cfg)
+	if err != nil {
+		return nil, change.Change{}, err
+	}
+
+	return record, c, nil
+}
+
+// DeleteDNSRecord removes a DNS record by ID, then refreshes the ExtraRecords
+// pushed to Tailscale clients.  It returns a Change that the caller must forward
+// to Headscale.Change().
+func (s *State) DeleteDNSRecord(cfg *types.Config, id uint64) (change.Change, error) {
+	if err := s.db.DeleteDNSRecord(id); err != nil {
+		return change.Change{}, err
+	}
+
+	return s.refreshDNSExtraRecords(cfg)
+}
+
+// RefreshDNSExtraRecords reloads all custom DNS records from the database,
+// merges them with any statically-configured extra records, and updates
+// cfg.TailcfgDNSConfig.ExtraRecords under dnsRecordsMu.
+// It returns an ExtraRecords change so callers can notify connected nodes.
+func (s *State) RefreshDNSExtraRecords(cfg *types.Config) (change.Change, error) {
+	return s.refreshDNSExtraRecords(cfg)
+}
+
+// refreshDNSExtraRecords is the internal implementation of RefreshDNSExtraRecords.
+func (s *State) refreshDNSExtraRecords(cfg *types.Config) (change.Change, error) {
+	dbRecords, err := s.db.ListDNSRecords()
+	if err != nil {
+		return change.Change{}, fmt.Errorf("reloading DNS records: %w", err)
+	}
+
+	s.dnsRecordsMu.Lock()
+	defer s.dnsRecordsMu.Unlock()
+
+	if cfg.TailcfgDNSConfig == nil {
+		// DNS is not configured; nothing to update.
+		return change.Change{}, nil
+	}
+
+	// Rebuild ExtraRecords from static config + DB-managed records.
+	// cfg.DNSConfig is a value type (not a pointer), so ExtraRecords is always safe to access.
+	merged := make([]tailcfg.DNSRecord, 0, len(cfg.DNSConfig.ExtraRecords)+len(dbRecords))
+	merged = append(merged, cfg.DNSConfig.ExtraRecords...)
+
+	for _, r := range dbRecords {
+		merged = append(merged, tailcfg.DNSRecord{
+			Name:  r.Name,
+			Type:  r.Type,
+			Value: r.Value,
+		})
+	}
+
+	cfg.TailcfgDNSConfig.ExtraRecords = merged
+
+	return change.ExtraRecords(), nil
+}
+
 // CreatePreAuthKey generates a new pre-authentication key for a user.
-// The userID parameter is now optional (can be nil) for system-created tagged keys.
+// The userID parameter is optional (can be nil) for system-created tagged keys.
 func (s *State) CreatePreAuthKey(userID *types.UserID, reusable bool, ephemeral bool, expiration *time.Time, aclTags []string) (*types.PreAuthKeyNew, error) {
 	return s.db.CreatePreAuthKey(userID, reusable, ephemeral, expiration, aclTags)
 }

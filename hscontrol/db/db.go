@@ -727,6 +727,36 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '';
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			// As of 2025-07-02, no new IDs should be added here.
+			// New migrations must be added AFTER this comment.
+			{
+				// Add the dns_records table for API-managed custom A/AAAA DNS records.
+				ID: "202604051200-add-dns-records-table",
+				Migrate: func(tx *gorm.DB) error {
+					if !tx.Migrator().HasTable("dns_records") {
+						err := tx.Exec(`
+CREATE TABLE dns_records(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  type text NOT NULL,
+  value text NOT NULL,
+  created_at datetime,
+  updated_at datetime
+)`).Error
+						if err != nil {
+							return fmt.Errorf("creating dns_records table: %w", err)
+						}
+					}
+
+					err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_dns_records_unique ON dns_records(name, type, value)`).Error
+					if err != nil {
+						return fmt.Errorf("creating dns_records unique index: %w", err)
+					}
+
+					return nil
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -738,6 +768,7 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '';
 			&types.APIKey{},
 			&types.Node{},
 			&types.Policy{},
+			&types.DNSRecord{},
 		)
 		if err != nil {
 			return err
@@ -753,6 +784,7 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '';
 			`DROP INDEX IF EXISTS "idx_name_provider_identifier"`,
 			`DROP INDEX IF EXISTS "idx_name_no_provider_identifier"`,
 			`DROP INDEX IF EXISTS "idx_pre_auth_keys_prefix"`,
+			`DROP INDEX IF EXISTS "idx_dns_records_unique"`,
 		}
 
 		for _, dropSQL := range dropIndexes {
@@ -771,6 +803,7 @@ WHERE tags IS NOT NULL AND tags != '[]' AND tags != '';
 			`CREATE UNIQUE INDEX idx_name_provider_identifier ON users(name, provider_identifier)`,
 			`CREATE UNIQUE INDEX idx_name_no_provider_identifier ON users(name) WHERE provider_identifier IS NULL`,
 			`CREATE UNIQUE INDEX idx_pre_auth_keys_prefix ON pre_auth_keys(prefix) WHERE prefix IS NOT NULL AND prefix != ''`,
+			`CREATE UNIQUE INDEX idx_dns_records_unique ON dns_records(name, type, value)`,
 		}
 
 		for _, indexSQL := range indexes {
