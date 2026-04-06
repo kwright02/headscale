@@ -1221,6 +1221,7 @@ func (s *State) refreshDNSExtraRecords(cfg *types.Config) (change.Change, error)
 	}
 
 	// Rebuild ExtraRecords from static config + DB-managed records.
+	// cfg.DNSConfig is a value type (not a pointer), so ExtraRecords is always safe to access.
 	merged := make([]tailcfg.DNSRecord, 0, len(cfg.DNSConfig.ExtraRecords)+len(dbRecords))
 	merged = append(merged, cfg.DNSConfig.ExtraRecords...)
 

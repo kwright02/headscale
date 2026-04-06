@@ -29,11 +29,13 @@ var (
 )
 
 // DNSRecord represents a custom A/AAAA DNS record stored in the database.
+// The unique constraint on (name, type, value) is enforced by the
+// idx_dns_records_unique index created in the schema migration.
 type DNSRecord struct {
 	ID    uint64 `gorm:"primaryKey;autoIncrement"`
-	Name  string `gorm:"not null;uniqueIndex:idx_dns_records_unique"`
-	Type  string `gorm:"not null;uniqueIndex:idx_dns_records_unique"` // "A" or "AAAA"
-	Value string `gorm:"not null;uniqueIndex:idx_dns_records_unique"`
+	Name  string `gorm:"not null"`
+	Type  string `gorm:"not null"` // "A" or "AAAA"
+	Value string `gorm:"not null"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

@@ -167,7 +167,7 @@ func (h *Headscale) DeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
 // validateDNSRecordName validates a DNS name for storage.
 // It accepts both single-label hostnames (e.g. "web") and fully-qualified domain
 // names (e.g. "grafana.myvpn.example.com" or "grafana.myvpn.example.com.").
-// The trailing dot (if present) is preserved so the stored value is an FQDN.
+// The name is stored as provided by the caller; no normalization is applied.
 func validateDNSRecordName(name string) (string, error) {
 	if name == "" {
 		return "", types.ErrDNSRecordInvalidName

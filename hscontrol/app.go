@@ -602,9 +602,10 @@ func (h *Headscale) Serve() error {
 	}
 
 	// Load any API-managed DNS records from the database and merge them into the
-	// initial TailcfgDNSConfig.  Errors are non-fatal: the server can still run
-	// without the DB-stored records (they will be missing until the next restart
-	// or API call).
+	// initial TailcfgDNSConfig.ExtraRecords.  If DNS is not configured
+	// (TailcfgDNSConfig is nil), this is a no-op.  If DNS is configured but
+	// the DB query fails, the warning is logged and the server continues with
+	// only the statically-configured extra records.
 	if _, err := h.state.RefreshDNSExtraRecords(h.cfg); err != nil {
 		log.Warn().Err(err).Msg("failed to load DNS records from database at startup")
 	}
